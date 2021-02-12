@@ -13,22 +13,23 @@ class Calculator:
         return sum(r.amount for r in self.records if r.date == dt.date.today())
 
     def get_week_stats(self):
-        return sum(r.amount for r in self.records if self.in_last_week(r.date))
-
-    def in_last_week(self, date):
         week_ago = dt.date.today() - dt.timedelta(days=7)
-        return date <= dt.date.today() and date > week_ago
+        gen = [r.amount for r in self.records
+               if week_ago < r.date <= dt.date.today()]
+        return sum(gen)
 
     def get_balance_for_today(self):
         return self.limit - self.get_today_stats()
 
 
 class Record:
-    def __init__(self, amount, comment,
-                 date=dt.date.today().strftime('%d.%m.%Y')):
+    def __init__(self, amount, comment, date=None):
         self.amount = amount
         self.comment = comment
-        self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
+        if date is None:
+            self.date = dt.date.today()
+        else:
+            self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
 
     def __str__(self):
         return self.comment
@@ -40,8 +41,7 @@ class CaloriesCalculator(Calculator):
         if balance > 0:
             return ('Сегодня можно съесть что-нибудь ещё,'
                     f' но с общей калорийностью не более {balance} кКал')
-        else:
-            return 'Хватит есть!'
+        return 'Хватит есть!'
 
 
 class CashCalculator(Calculator):
@@ -50,18 +50,19 @@ class CashCalculator(Calculator):
 
     def get_today_cash_remained(self, currency):
         balance = self.get_balance_for_today()
+        if balance == 0:
+            return 'Денег нет, держись'
         value, ending = self.convert_currency(balance, currency)
         if balance > 0:
             return f'На сегодня осталось {value:.2f} {ending}'
-        elif balance == 0:
-            return 'Денег нет, держись'
-        else:
-            return f'Денег нет, держись: твой долг - {-value:.2f} {ending}'
+        value = -value
+        return f'Денег нет, держись: твой долг - {value:.2f} {ending}'
 
     def convert_currency(self, rub_value, currency):
         if currency == 'usd':
-            return rub_value / self.USD_RATE, 'USD'
-        if currency == 'eur':
-            return rub_value / self.EURO_RATE, 'Euro'
+            result = rub_value / self.USD_RATE, 'USD'
+        elif currency == 'eur':
+            result = rub_value / self.EURO_RATE, 'Euro'
         else:
-            return rub_value, 'руб'
+            result = rub_value, 'руб'
+        return result
